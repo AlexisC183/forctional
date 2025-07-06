@@ -1,58 +1,45 @@
 (ns com.github.alexisc183.forctional.core
   "Utility library.")
 
-(defn nthable-coll?
-  "Checks whether `x` is a vector, list or a sequence."
-  [x]
-  (or
-   (vector? x)
-   (list? x)
-   (seq? x)))
+(defn between?
+  "Checks whether `lower <= c <= upper` is true."
+  [c lower upper]
+  (and
+   (>= (compare c lower) 0)
+   (<= (compare c upper) 0)))
 
 (defn matrix?
-  "Checks whether `x` is a rectangular matrix with cells accessible via `nth`.
-  A rectangular matrix is a collection of collections where all the subcollections
-  share the same length, in this way emulating a grid-like data structure."
+  "Checks whether `x` is a rectangular matrix.
+  In this context, a rectangular matrix is such if it is a vector of vectors
+  where all the subvectors share the same length."
   [x]
   (cond
-    (not (nthable-coll? x)) false
+    (not (vector? x)) false
     (empty? x) true
-    
-    ;; Starting from here x has at least 1 item.
-    :else (loop [i 0]
-            (cond
-              (= i (count x)) true
-              (or
-               (not (nthable-coll? (nth x i)))
-               (not= (count (nth x i)) (count (first x)))) false
-              :else (recur (inc i))))))
-
+    (some #(not (vector? %)) x) false
+    :else (let [first-vec-count (count (first x))]
+            (if (some #(not= (count %) first-vec-count) x)
+              false
+              true))))
 
 (defn diagonal
-  "Returns a collection with the items of the main diagonal of `matrix`.
+  "Returns a sequence with the items of the main diagonal of `matrix`.
   See also [[matrix?]]."
   [matrix]
-  (if-not (matrix? matrix)
-    (throw (IllegalArgumentException. "matrix cells cannot be accessed via nth or matrix is not rectangular"))
-    (loop [i 0
-           diagonal-items []]
-      (if (or (= i (count matrix)) (= i (count (nth matrix i))))
-        diagonal-items
-        (recur
-         (inc i)
-         (conj diagonal-items (-> matrix
-                                  (nth i)
-                                  (nth i))))))))
+  (cond
+    (not (matrix? matrix)) (throw (IllegalArgumentException. "matrix is not a vector of vectors with shared length."))
+    (empty? matrix) (lazy-seq [])
+    :else (->> (range 0 (min (count matrix) (count (first matrix))))
+               (map #(-> matrix (nth %) (nth %))))))
 
 (defn lines
-  "Returns all the lines from a file read with the provided `reader_`.
+  "Returns a sequence with the lines from a file read with the provided
+  `java.io.BufferedReader` as `in`.
   See also [[clojure.java.io/reader]]."
-  [reader_]
-  (loop [line (.readLine reader_)
-         lines []]
-    (if (nil? line)
-      lines
-      (recur (.readLine reader_) (conj lines line)))))
+  [in]
+  (->> (repeat #(.readLine in))
+       (map #(%))
+       (take-while #(not (nil? %)))))
 
 (defn matches?
   "Checks whether the string `s` matches against the RegEx Pattern `re`."
@@ -63,25 +50,29 @@
       not))
 
 (defn mode
-  "Determines the most common items from the provided `ncoll`."
-  [ncoll]
+  "Determines the most common items from the provided `coll`."
+  [coll]
   (cond
-    (not (nthable-coll? ncoll)) (throw (IllegalArgumentException. "ncoll must be a vector, list or a sequence"))
-    (empty? ncoll) []
-
-    ;; ncoll is a non-empty coll.
-    :else (let [entries (->> ncoll
+    (not (coll? coll)) (throw (IllegalArgumentException. "coll must be a collection"))
+    (empty? coll) (lazy-seq [])
+    :else (let [entries (->> coll
                              (group-by identity)
                              (map (fn [[k vs]] [k (count vs)]))
 
                              ;; Coll of [k count]s.
                              (sort #(- (compare (last %1) (last %2)))))]
             (->> entries
-                 (filter #(= (last %) (-> entries
-                                          first
-                                          last)))
+                 (filter #(= (last %) (-> entries first last)))
                  (map first)))))
 
+
+(defn ^:deprecated nthable-coll?
+  "Checks whether `x` is a vector, list or a sequence."
+  [x]
+  (or
+   (vector? x)
+   (list? x)
+   (seq? x)))
 
 (defn surround-with-html
   "Encloses the provided `s` in HTML tags."
@@ -95,7 +86,8 @@
     (not (any? (f)))
     (catch Exception _ true)))
 
-(defn within-closed-range?
+(defn ^{:deprecated true
+        :superseded-by "between?"} within-closed-range?
   "Checks whether `lower-bound <= comparable <= upper-bound` is true."
   [comparable lower-bound upper-bound]
   (and
