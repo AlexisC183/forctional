@@ -1,4 +1,4 @@
-(ns com.github.alexisc183.forctional.core
+(ns ^:deprecated com.github.alexisc183.forctional.core
   "Utility library.")
 
 (defn between?
