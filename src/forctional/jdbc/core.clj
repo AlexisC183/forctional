@@ -23,10 +23,14 @@
        vec))
 
 (defn manager
+  "Creates an object that may auto-close the JDBC resources produced by the
+  provided `javax.sql.DataSource` as `ds`."
   [ds]
   (JdbcManager. ds))
 
 (defn exec
+  "Executes the `sql` string with the JDBC manager `mng`.
+  A `values` vector is used when `sql` has ? placeholders."
   ([mng sql]
    (throw-if-bad-args mng sql)
    (.execute mng sql)
@@ -45,6 +49,10 @@
            (recur (inc i) (inc ordinal))))))))
 
 (defn exec-query
+  "Returns the result of executing the `sql` string with the JDBC manager `mng`.
+  `cols` is a set of keywords that match the names of the desired colums to
+  retrieve.
+  A `values` vector is used when `sql` has ? placeholders."
   ([mng sql cols]
    (throw-if-bad-args mng sql)
    (when-not (set? cols) (throw (IllegalArgumentException. "cols must be a set"))) 
